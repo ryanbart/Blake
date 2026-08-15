@@ -20,7 +20,8 @@
     "sync": "tsx scripts/sync.ts",
     "analyze": "tsx scripts/analyze.ts",
     "verify": "tsx scripts/verify.ts",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "db:test:setup": "createdb -h 127.0.0.1 -p 5433 -U postgres blake_test 2>/dev/null; DATABASE_URL=\"postgresql://postgres@127.0.0.1:5433/blake_test?schema=public\" prisma migrate deploy"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.117.1",
@@ -36,7 +37,7 @@
     "react-dom": "^19.0.0",
     "recharts": "^2.15.0",
     "tailwind-merge": "^2.6.0",
-    "zod": "^3.24.1"
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
