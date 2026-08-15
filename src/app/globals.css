@@ -48,6 +48,32 @@
 
   --radius: 0.5rem;
   --radius-sm: 0.3125rem;
+
+  /* --- Chart tokens ------------------------------------------------------
+     Severity is ordered (low < critical), so it is a one-hue ORDINAL ramp
+     rather than four categorical hues: four distinct hues failed the
+     normal-vision separation floor (medium vs high measured ΔE 9.0, well
+     under 15), while a single-hue ramp also keeps the "hotter = worse"
+     convention. Validated with the dataviz validator against this surface.
+
+     The ramp is indexed so that rising severity always means rising contrast
+     against the surface: darker as severity climbs on light, lighter on dark.
+     A critical mark must never be the one that recedes. */
+  --viz-sev-1: #eaa88f; /* low */
+  --viz-sev-2: #d97753; /* medium */
+  --viz-sev-3: #bd4a29; /* high */
+  --viz-sev-4: #8a2f1a; /* critical */
+
+  /* Single-series marks. Most charts here plot one measure, so they carry one
+     hue rather than a categorical palette. */
+  --viz-primary: #2a78d6;
+  --viz-primary-soft: #9ec5f4;
+  --viz-secondary: #eb6834;
+
+  --viz-grid: #e1e0d9;
+  --viz-axis: #c3c2b7;
+  --viz-ink: #52514e;
+  --viz-ink-muted: #898781;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -85,6 +111,23 @@
     --actor-human-bg: #1b2333;
     --actor-ai-bg: #251f33;
     --actor-system-bg: #242422;
+
+    /* Same four hexes as light, indexed in reverse: on a dark surface rising
+       severity must still mean rising contrast, so critical is the brightest
+       step rather than the darkest. */
+    --viz-sev-1: #9c4025; /* low */
+    --viz-sev-2: #c25a34; /* medium */
+    --viz-sev-3: #e08a5f; /* high */
+    --viz-sev-4: #f2b79d; /* critical */
+
+    --viz-primary: #3987e5;
+    --viz-primary-soft: #1c5cab;
+    --viz-secondary: #d95926;
+
+    --viz-grid: #2c2c2a;
+    --viz-axis: #383835;
+    --viz-ink: #c3c2b7;
+    --viz-ink-muted: #898781;
   }
 }
 
@@ -122,6 +165,23 @@
   --actor-human-bg: #1b2333;
   --actor-ai-bg: #251f33;
   --actor-system-bg: #242422;
+
+  /* Same four hexes as light, indexed in reverse: on a dark surface rising
+     severity must still mean rising contrast, so critical is the brightest
+     step rather than the darkest. */
+  --viz-sev-1: #9c4025; /* low */
+  --viz-sev-2: #c25a34; /* medium */
+  --viz-sev-3: #e08a5f; /* high */
+  --viz-sev-4: #f2b79d; /* critical */
+
+  --viz-primary: #3987e5;
+  --viz-primary-soft: #1c5cab;
+  --viz-secondary: #d95926;
+
+  --viz-grid: #2c2c2a;
+  --viz-axis: #383835;
+  --viz-ink: #c3c2b7;
+  --viz-ink-muted: #898781;
 }
 
 @theme inline {
