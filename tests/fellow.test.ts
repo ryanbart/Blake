@@ -215,6 +215,18 @@ describe("mock transport", () => {
     expect(await client.getActionItems("fw_standup_0813")).toEqual([]);
   });
 
+  it("fetches a single meeting with its participants", async () => {
+    const meeting = await client.getMeeting("fw_apex_0814");
+    expect(meeting?.meetingId).toBe("fw_apex_0814");
+    expect(meeting?.participants.some((p) => p.isExternal)).toBe(true);
+  });
+
+  it("returns null for an unknown meeting rather than throwing", async () => {
+    // The webhook path depends on this: an event for a meeting we cannot read
+    // must not 500 and make Fellow redeliver forever.
+    expect(await client.getMeeting("fw_does_not_exist")).toBeNull();
+  });
+
   it("computes duration from the calendar window", () => {
     const meeting = toMeeting({
       meeting_id: "x",
@@ -261,6 +273,7 @@ describe("meeting ingest", () => {
     });
     expect(stored.source).toBe("fellow");
     expect(stored.analysisStatus).toBe("pending");
+    expect(result.agentMatched).toBe(true);
     expect(stored.agent?.name).toBe("Ryan Bartlett");
     expect(stored.participants.filter((p) => p.isExternal)).toHaveLength(1);
     expect(stored.segments.length).toBeGreaterThan(5);
@@ -270,6 +283,25 @@ describe("meeting ingest", () => {
     expect(
       await prisma.analysis.count({ where: { conversationId: stored.id } }),
     ).toBe(0);
+  });
+
+  it("reports an unattributed meeting rather than inventing a rep", async () => {
+    // Fellow contains internal people who were never on the Dialpad roster.
+    // Minting an Agent for each would fill the coaching leaderboard with
+    // whoever sat in on a call, so ingest reports the gap and moves on.
+    await prisma.agent.deleteMany({ where: { email: "ryan@unitedmh.com" } });
+
+    const result = await ingest("fw_apex_0814");
+    expect(result.created).toBe(true);
+    expect(result.agentMatched).toBe(false);
+
+    const stored = await prisma.conversation.findUniqueOrThrow({
+      where: { id: result.conversationId },
+    });
+    // Stored and analyzable — just not on anyone's agent view.
+    expect(stored.agentId).toBeNull();
+    expect(stored.analysisStatus).toBe("pending");
+    expect(await prisma.agent.count()).toBe(0);
   });
 
   it("stores an internal meeting but never queues it for scoring", async () => {

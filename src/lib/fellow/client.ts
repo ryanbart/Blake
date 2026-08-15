@@ -41,6 +41,12 @@ export class TranscriptUnavailableError extends FellowError {
 
 export interface FellowClient {
   listMeetings(opts: { fromDate: Date; toDate: Date }): Promise<FellowMeeting[]>;
+  /**
+   * Fetch one meeting. The webhook path uses this rather than reading the
+   * delivered payload, so a forged or stale body cannot inject conversation
+   * content — at most it points us at a meeting to re-read from the API.
+   */
+  getMeeting(meetingId: string): Promise<FellowMeeting | null>;
   getParticipants(meetingId: string): Promise<FellowParticipant[]>;
   getTranscript(meetingId: string): Promise<FellowTranscriptLine[]>;
   getActionItems(meetingId: string): Promise<FellowActionItem[]>;
@@ -75,6 +81,17 @@ export class MockFellowClient implements FellowClient {
       meetings.push(toMeeting(parsed.data, participants));
     }
     return meetings;
+  }
+
+  async getMeeting(meetingId: string): Promise<FellowMeeting | null> {
+    const data = await this.readJson<{ items: unknown[] }>("meetings.json");
+    for (const item of data.items) {
+      const parsed = FellowMeetingRaw.safeParse(item);
+      if (!parsed.success || parsed.data.meeting_id !== meetingId) continue;
+      const participants = await this.getParticipants(meetingId).catch(() => []);
+      return toMeeting(parsed.data, participants);
+    }
+    return null;
   }
 
   async getParticipants(meetingId: string): Promise<FellowParticipant[]> {
@@ -214,6 +231,25 @@ export class LiveFellowClient implements FellowClient {
     } while (cursor && guard < 100);
 
     return meetings;
+  }
+
+  async getMeeting(meetingId: string): Promise<FellowMeeting | null> {
+    try {
+      const body = await this.request<unknown>(
+        `/meetings/${encodeURIComponent(meetingId)}`,
+      );
+      // The single-meeting response may or may not be wrapped; unwrap one level
+      // if it is, since a wrapper has no meeting_id of its own to match on.
+      const envelope = body as { meeting?: unknown; data?: unknown };
+      const candidate = envelope?.meeting ?? envelope?.data ?? body;
+      const parsed = FellowMeetingRaw.safeParse(candidate);
+      if (!parsed.success) return null;
+      const participants = await this.getParticipants(meetingId).catch(() => []);
+      return toMeeting(parsed.data, participants);
+    } catch (err) {
+      if (err instanceof FellowError && err.status === 404) return null;
+      throw err;
+    }
   }
 
   async getParticipants(meetingId: string): Promise<FellowParticipant[]> {

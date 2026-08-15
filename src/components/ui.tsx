@@ -100,6 +100,28 @@ export function SeverityBadge({ severity }: { severity: string }) {
   );
 }
 
+/**
+ * Which system a conversation came from.
+ *
+ * Text, not color: source is metadata, and spending a categorical hue on it
+ * would compete with severity — the thing on the row that actually needs to be
+ * noticed. The glyph carries the call/meeting distinction at a glance.
+ */
+export function SourceBadge({ source }: { source: string }) {
+  const label =
+    source === "dialpad" ? "Call" : source === "fellow" ? "Meeting" : source;
+  const icon = source === "dialpad" ? "☏" : source === "fellow" ? "▤" : "•";
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-xs text-[var(--text-subtle)]"
+      title={`${label} · ${source}`}
+    >
+      <span aria-hidden>{icon}</span>
+      {label}
+    </span>
+  );
+}
+
 export type ActorLike = {
   kind: string;
   displayName: string;

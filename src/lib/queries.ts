@@ -13,12 +13,21 @@ export interface DayBucket {
   value: number;
 }
 
-/** Conversations per day. Gaps are filled with zero so the axis stays continuous. */
+/**
+ * Customer conversations per day. Gaps are filled with zero so the axis stays
+ * continuous.
+ *
+ * Internal meetings are excluded here and everywhere else on the overview.
+ * They are real conversations and worth storing, but this dashboard answers
+ * "how much are we talking to customers" — folding standups into that number
+ * inflates it with attendance.
+ */
 export async function volumeByDay(days = 30): Promise<DayBucket[]> {
   const rows = await prisma.$queryRaw<Array<{ day: Date; count: bigint }>>`
     SELECT date_trunc('day', "startedAt") AS day, count(*) AS count
     FROM "Conversation"
     WHERE "startedAt" >= now() - make_interval(days => ${days})
+      AND "direction" <> 'internal'
     GROUP BY day ORDER BY day
   `;
   return fillDays(rows.map((r) => ({ day: r.day, value: Number(r.count) })), days);
@@ -91,7 +100,11 @@ export async function agentLeaderboard(days = 90): Promise<LeaderboardRow[]> {
            count(f.id) FILTER (WHERE f.severity = 'critical') AS critical
     FROM "Agent" ag
     LEFT JOIN "Conversation" c
-      ON c."agentId" = ag.id AND c."startedAt" >= now() - make_interval(days => ${days})
+      ON c."agentId" = ag.id
+     AND c."startedAt" >= now() - make_interval(days => ${days})
+     -- Attending a standup is not a customer conversation; counting it would
+     -- rank reps partly on calendar load.
+     AND c."direction" <> 'internal'
     LEFT JOIN "Analysis" an ON an."conversationId" = c.id
     LEFT JOIN "Flag" f ON f."conversationId" = c.id
     GROUP BY ag.id, ag.name, ag.team
@@ -133,11 +146,18 @@ export async function agentLeaderboard(days = 90): Promise<LeaderboardRow[]> {
 
 export async function overviewStats(days = 30) {
   const since = new Date(Date.now() - days * 86_400_000);
+  // Internal meetings are never analyzed by design, so counting them in the
+  // denominator would peg analysis coverage permanently below 100% and make a
+  // healthy pipeline look like a backlog.
+  const customerFacing = {
+    startedAt: { gte: since },
+    direction: { not: "internal" as const },
+  };
   const [conversations, analyzed, critical, pendingActions, meanScore, unavailable] =
     await Promise.all([
-      prisma.conversation.count({ where: { startedAt: { gte: since } } }),
+      prisma.conversation.count({ where: customerFacing }),
       prisma.conversation.count({
-        where: { startedAt: { gte: since }, analysisStatus: "analyzed" },
+        where: { ...customerFacing, analysisStatus: "analyzed" },
       }),
       prisma.flag.count({
         where: { severity: "critical", conversation: { startedAt: { gte: since } } },
@@ -148,7 +168,7 @@ export async function overviewStats(days = 30) {
         where: { conversation: { startedAt: { gte: since } } },
       }),
       prisma.conversation.count({
-        where: { startedAt: { gte: since }, transcriptStatus: "unavailable" },
+        where: { ...customerFacing, transcriptStatus: "unavailable" },
       }),
     ]);
 

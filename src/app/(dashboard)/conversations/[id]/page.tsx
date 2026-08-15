@@ -258,10 +258,21 @@ export default async function ConversationDetailPage({
           ) : (
             <Card>
               <CardHeader title="Coaching scorecard" />
-              <EmptyState
-                title="Not analyzed yet."
-                hint="Run `npm run analyze`."
-              />
+              {/* An internal meeting has no scorecard by design, not by backlog.
+                  Saying "not analyzed yet" would read as a queue to work off. */}
+              {conversation.direction === "internal" ? (
+                <EmptyState
+                  title="Internal meeting — not scored."
+                  hint="No external attendee, so a sales rubric would produce numbers that mean nothing. The transcript is kept as conversation history."
+                />
+              ) : conversation.transcriptStatus === "unavailable" ? (
+                <EmptyState
+                  title="No transcript available."
+                  hint="Coaching analysis needs a transcript. The recording link above, if present, is all this conversation carries."
+                />
+              ) : (
+                <EmptyState title="Not analyzed yet." hint="Run `npm run analyze`." />
+              )}
             </Card>
           )}
 

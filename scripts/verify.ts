@@ -1,6 +1,10 @@
 import "dotenv/config";
 import { prisma } from "@/lib/db";
 import { createDialpadClient, TranscriptUnavailableError } from "@/lib/dialpad/client";
+import {
+  createFellowClient,
+  TranscriptUnavailableError as FellowTranscriptUnavailable,
+} from "@/lib/fellow/client";
 import { hasAnthropicKey } from "@/lib/analysis/claude";
 
 /**
@@ -132,6 +136,128 @@ async function checkDialpad(): Promise<Check[]> {
   return checks;
 }
 
+/**
+ * Fellow's field names came from payloads captured against a live workspace, so
+ * this check exists mainly to confirm the *envelope* — pagination and endpoint
+ * paths — which is the part that could not be grounded.
+ */
+async function checkFellow(): Promise<Check[]> {
+  const transport = (process.env.FELLOW_TRANSPORT ?? "mock").toLowerCase();
+  const checks: Check[] = [];
+
+  if (transport !== "live") {
+    return [
+      {
+        name: "fellow",
+        ok: true,
+        warn: true,
+        detail: "transport is 'mock' — set FELLOW_TRANSPORT=live to check credentials",
+      },
+    ];
+  }
+  if (!process.env.FELLOW_API_KEY) {
+    return [{ name: "fellow", ok: false, detail: "FELLOW_API_KEY is not set" }];
+  }
+
+  const client = createFellowClient();
+  const toDate = new Date();
+  const fromDate = new Date(toDate.getTime() - 7 * 86_400_000);
+
+  let meetings;
+  try {
+    meetings = await client.listMeetings({ fromDate, toDate });
+    checks.push({
+      name: "fellow.meetings",
+      ok: true,
+      warn: meetings.length === 0,
+      detail:
+        meetings.length === 0
+          ? "authenticated but no meetings in the last 7 days"
+          : `${meetings.length} meetings. Field check on the first row: ` +
+            `startedAt=${meetings[0].startedAt.toISOString()} duration=${meetings[0].durationSec}s ` +
+            `title=${JSON.stringify(meetings[0].title)} participants=${meetings[0].participants.length}`,
+    });
+  } catch (err) {
+    return [
+      ...checks,
+      {
+        name: "fellow.meetings",
+        ok: false,
+        detail: err instanceof Error ? err.message : String(err),
+      },
+    ];
+  }
+
+  if (meetings.length === 0) return checks;
+
+  /**
+   * The single most consequential field. Fellow gives transcript speakers as
+   * display names, so `is_external` on the participant list is what decides
+   * which side said what — and therefore whether a rep gets flagged for a
+   * customer's words. If it is absent everywhere, everyone parses as internal
+   * and every meeting is silently skipped as a standup.
+   */
+  const external = meetings.filter((m) => m.participants.some((p) => p.isExternal));
+  checks.push({
+    name: "fellow.participants",
+    ok: true,
+    warn: external.length === 0,
+    detail:
+      external.length === 0
+        ? "no meeting has an external participant. If that is wrong, `is_external` is " +
+          "missing or renamed — every meeting would be treated as internal and skipped."
+        : `${external.length}/${meetings.length} meetings have an external participant`,
+  });
+
+  const withParticipants = meetings.find((m) => m.participants.length > 0) ?? meetings[0];
+  try {
+    const lines = await client.getTranscript(withParticipants.meetingId);
+    const speakers = [...new Set(lines.map((l) => l.speakerName ?? "none"))];
+    const matched = speakers.filter((s) =>
+      withParticipants.participants.some(
+        (p) => p.name === s || p.email.split("@")[0].toLowerCase() === s.toLowerCase(),
+      ),
+    );
+    checks.push({
+      name: "fellow.transcripts",
+      ok: lines.length > 0,
+      warn: speakers.length > 0 && matched.length === 0,
+      detail:
+        lines.length === 0
+          ? "endpoint responded but returned no lines — check the transcript envelope key"
+          : `${lines.length} lines on ${withParticipants.meetingId}. Speakers: ${speakers.join(", ")}` +
+            (speakers.length > 0 && matched.length === 0
+              ? " — none matched a participant by name or email, so every line would " +
+                "be attributed to `unknown` and excluded from coaching."
+              : ""),
+    });
+  } catch (err) {
+    checks.push({
+      name: "fellow.transcripts",
+      ok: false,
+      warn: err instanceof FellowTranscriptUnavailable,
+      detail:
+        err instanceof FellowTranscriptUnavailable
+          ? `no transcript for ${withParticipants.meetingId} — it may simply not have been recorded`
+          : err instanceof Error
+            ? err.message
+            : String(err),
+    });
+  }
+
+  checks.push({
+    name: "fellow.webhook",
+    ok: true,
+    warn: !process.env.FELLOW_WEBHOOK_SECRET,
+    detail: process.env.FELLOW_WEBHOOK_SECRET
+      ? "secret set — deliveries to POST /api/fellow/webhook will be verified"
+      : "FELLOW_WEBHOOK_SECRET is not set, so the webhook route rejects every " +
+        "delivery. Backfill still works; real-time ingest does not.",
+  });
+
+  return checks;
+}
+
 function checkAnalysis(): Check {
   if (!hasAnthropicKey()) {
     return {
@@ -170,6 +296,7 @@ async function main() {
   const checks: Check[] = [];
   if (wants("database")) checks.push(await checkDatabase());
   if (wants("dialpad")) checks.push(...(await checkDialpad()));
+  if (wants("fellow")) checks.push(...(await checkFellow()));
   if (wants("analysis")) checks.push(checkAnalysis());
   if (wants("safety")) checks.push(checkSafety());
 

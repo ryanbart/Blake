@@ -6,6 +6,7 @@ import {
   PageHeader,
   ScorePill,
   SeverityBadge,
+  SourceBadge,
   formatDateTime,
   formatDuration,
 } from "@/components/ui";
@@ -32,11 +33,18 @@ export default async function ConversationsPage({
       : {}),
     ...(source === "dialpad" || source === "fellow" ? { source } : {}),
     ...(agentId ? { agentId } : {}),
+    // "Unanalyzed" is a backlog to work off, so internal meetings are excluded:
+    // they are skipped on purpose and would never leave the list.
     ...(status === "unanalyzed"
-      ? { analysisStatus: { in: ["pending", "skipped", "failed"] } }
+      ? {
+          analysisStatus: { in: ["pending", "skipped", "failed"] },
+          direction: { not: "internal" },
+        }
       : status === "no-transcript"
         ? { transcriptStatus: "unavailable" }
-        : {}),
+        : status === "internal"
+          ? { direction: "internal" }
+          : {}),
   };
 
   const [conversations, total, agents] = await Promise.all([
@@ -61,7 +69,7 @@ export default async function ConversationsPage({
     {
       key: "status",
       label: "Status",
-      options: ["unanalyzed", "no-transcript"],
+      options: ["unanalyzed", "no-transcript", "internal"],
       current: status,
     },
   ];
@@ -172,7 +180,8 @@ export default async function ConversationsPage({
                         >
                           {conversation.title ?? "Untitled conversation"}
                         </Link>
-                        <div className="mt-0.5 flex flex-wrap gap-1.5">
+                        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <SourceBadge source={conversation.source} />
                           {conversation.themes.slice(0, 3).map((t) => (
                             <span
                               key={t.id}
@@ -193,10 +202,17 @@ export default async function ConversationsPage({
                         {formatDuration(conversation.durationSec)}
                       </td>
                       <td className="px-2 py-2.5 text-right">
-                        {conversation.transcriptStatus === "unavailable" ? (
+                        {conversation.direction === "internal" ? (
                           <span
                             className="text-xs text-[var(--text-subtle)]"
-                            title="No transcript, so this call could not be analyzed"
+                            title="Internal meeting — deliberately not scored on a sales rubric"
+                          >
+                            internal
+                          </span>
+                        ) : conversation.transcriptStatus === "unavailable" ? (
+                          <span
+                            className="text-xs text-[var(--text-subtle)]"
+                            title="No transcript, so this conversation could not be analyzed"
                           >
                             no transcript
                           </span>

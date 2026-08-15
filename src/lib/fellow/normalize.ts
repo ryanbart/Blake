@@ -79,8 +79,6 @@ export interface UpsertMeetingInput {
   transcript: FellowTranscriptLine[] | null;
   transcriptUnavailable?: boolean;
   actorId: string;
-  /** Fellow's own action items — recorded as context, not as our findings. */
-  actionItemCount?: number;
 }
 
 export interface UpsertMeetingResult {
@@ -89,6 +87,12 @@ export interface UpsertMeetingResult {
   transcriptWritten: boolean;
   isCustomerFacing: boolean;
   skippedInternal: boolean;
+  /**
+   * False when no internal attendee matched an Agent row. The meeting is still
+   * stored, but it will not appear on any agent view — callers surface this
+   * rather than letting attribution fail quietly.
+   */
+  agentMatched: boolean;
 }
 
 /**
@@ -195,6 +199,7 @@ export async function upsertMeeting(
       transcriptWritten: shouldWriteTranscript,
       isCustomerFacing: normalized.isCustomerFacing,
       skippedInternal: !normalized.isCustomerFacing,
+      agentMatched: Boolean(existing.agentId ?? agent),
     };
   }
 
@@ -252,5 +257,6 @@ export async function upsertMeeting(
     transcriptWritten: hasTranscript,
     isCustomerFacing: normalized.isCustomerFacing,
     skippedInternal: !normalized.isCustomerFacing,
+    agentMatched: Boolean(agent),
   };
 }

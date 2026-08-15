@@ -5,8 +5,8 @@ analyzes them with Claude plus a deterministic rules layer, and turns the result
 into coaching feedback, issue flags, customer themes, and — from Phase 3 —
 Salesforce field updates a rep approves in one click.
 
-**Phase 1 (Dialpad + coaching UI) is built.** Fellow and Salesforce are planned;
-see [Status](#status).
+**Phases 1–2 are built** — Dialpad calls, Fellow meetings, and the coaching UI.
+Salesforce is planned; see [Status](#status).
 
 ---
 
@@ -121,10 +121,10 @@ information needed to explain a year-old suggestion.
 | `npm run dev` | Development server |
 | `npm run db:up` / `db:down` | Start/stop local Postgres 16 |
 | `npm run seed` | Seed agents, conversations, transcripts, reference data |
-| `npm run sync` | Backfill from Dialpad (`-- --days 30`) |
+| `npm run sync` | Backfill both sources (`-- --days 30`, `-- --source fellow`) |
 | `npm run analyze` | Analyze pending conversations (`-- --force`, `-- --limit 5`) |
 | `npm run verify` | Check credentials and connectivity |
-| `npm test` | Test suite (96 tests) |
+| `npm test` | Test suite (149 tests) |
 
 ## Configuration
 
@@ -160,12 +160,37 @@ Run these in order; each is verifiable on its own.
    `POST /api/dialpad/webhook`. Payloads are HS256-signed JWTs; anything that
    fails verification is rejected before it reaches the database.
 
-3. **Claude.** Set `ANTHROPIC_API_KEY` and run `npm run analyze -- --limit 5`.
+3. **Fellow.** Set `FELLOW_API_KEY` and `FELLOW_TRANSPORT=live`, then
+   `npm run verify -- --fellow`. Field names came from payloads captured against
+   a live workspace, so what this is really checking is the *envelope* —
+   pagination and endpoint paths — plus two things that fail quietly:
+
+   - **`is_external` on participants.** It decides which side of a meeting each
+     speaker is on. If it is missing or renamed, every attendee parses as
+     internal and every meeting is silently skipped as a standup. Verify says so
+     explicitly when no meeting has an external participant.
+   - **Speaker-name matching.** Fellow gives transcript speakers as display
+     names, not sides, so names are matched back to the participant list. Verify
+     reports when no speaker matched anyone — that state attributes every line
+     to `unknown` and excludes the meeting from coaching.
+
+   Register a webhook and set `FELLOW_WEBHOOK_SECRET` to enable real-time ingest
+   at `POST /api/fellow/webhook`.
+
+   > Fellow's signing scheme is the one thing here that could not be grounded —
+   > the docs are unreachable and no signed delivery has been observed. The
+   > verifier implements the two schemes vendors actually use (bare HMAC-SHA256,
+   > and Stripe-style `t=…,v1=…`), tries both, and **rejects anything matching
+   > neither**. Not knowing the scheme is a reason to reject more payloads, not
+   > fewer. Once a real delivery is captured, keep the matching scheme and delete
+   > the other.
+
+4. **Claude.** Set `ANTHROPIC_API_KEY` and run `npm run analyze -- --limit 5`.
    Confirm `cache_read_input_tokens` is non-zero from the second call onward —
    the CLI warns if it is not, which is the symptom of per-call content leaking
    into the cached prompt prefix.
 
-4. **Nightly backfill.** Schedule `npm run sync`. The window deliberately
+5. **Nightly backfill.** Schedule `npm run sync`. The window deliberately
    overlaps what webhooks already delivered; ingest is idempotent on
    `(source, sourceId)`, so re-covering a day is free and dropped deliveries heal.
 
@@ -176,7 +201,7 @@ Run these in order; each is verifiable on its own.
 | Phase | State |
 |---|---|
 | **1 — Foundation + Dialpad + coaching UI** | Built |
-| 2 — Fellow ingestion | Planned |
+| **2 — Fellow ingestion** | Built |
 | 3 — Salesforce OAuth, matching, review queue | Planned |
 | 4 — Outbound email + internal notifications | Planned |
 
@@ -186,8 +211,28 @@ output and heuristic fallback, idempotent ingest, webhook receiver, CLIs, and th
 dashboard (overview, conversations, conversation detail, agents, themes, rules,
 audit).
 
+Built in Phase 2: Fellow client (mock + live), meeting normalization, signed
+webhook receiver, and both sources in one `sync`. Meetings appear alongside calls
+everywhere — the list, detail, agents, themes — with no forked UI.
+
 Not yet built: editing rules from the UI, the CRM review queue (the panel exists
-and is empty), Fellow ingestion, and any Salesforce write path.
+and is empty), and any Salesforce write path.
+
+### Two Fellow behaviours worth knowing
+
+**Internal meetings are stored but never scored.** A standup has no external
+attendee, and running one through a sales rubric produces numbers that mean
+nothing while dragging down a rep's average. Those meetings are kept as
+conversation history, marked `internal`, and excluded from every overview metric
+— including the analysis-coverage ratio, which would otherwise sit permanently
+below 100% and read as a backlog.
+
+**Ingest never invents a rep.** Dialpad has a roster to sync from; Fellow has
+whoever was on the invite, so minting an `Agent` per internal attendee would fill
+the coaching leaderboard with engineers who sat in on one call. Instead, internal
+attendees are matched to existing agents by email, and `npm run sync` prints the
+addresses that matched nobody — those meetings are stored and analyzable but will
+not appear on any agent view until an `Agent` exists with that email.
 
 ---
 
