@@ -1,0 +1,5 @@
+call_id,date_started,direction,duration,target_id,target_name,external_number,contact_name,disposition,disposition_notes,recording_url
+dp_1001,1755172800,outbound,412,5001,Dana Whitfield,+15025550142,Peter De Haan,Connected,"Wants pricing on 3 reach trucks, asked about lead time",https://recordings.example/dp_1001
+dp_1002,1755180000,inbound,138,5002,Marcus Oyelaran,+15025550188,Sandra Kelleher,Connected,"Complaint about a late delivery; said ""this is unacceptable"" and asked for a manager",https://recordings.example/dp_1002
+dp_1003,1755186000,outbound,27,5001,Dana Whitfield,+15025550101,Unknown,No Answer,,
+dp_1004,1755259200,outbound,655,5003,Priya Raghunathan,+15025550233,Doug Nyquist,Connected,"Comparing us to Crown; wants a written quote by Friday",https://recordings.example/dp_1004

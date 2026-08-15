@@ -1,0 +1,14 @@
+{
+  "call_id": "dp_1004",
+  "lines": [
+    { "type": "transcript", "name": "Priya Raghunathan", "speaker_type": "agent", "content": "Hi Doug, Priya from United Material Handling. Is now still a good time for the fifteen minutes we booked?", "time": 1755259200000 },
+    { "type": "transcript", "name": "Doug Nyquist", "speaker_type": "external", "content": "It is. I will say up front we are also talking to Crown Equipment.", "time": 1755259212000 },
+    { "type": "transcript", "name": "Priya Raghunathan", "speaker_type": "agent", "content": "That is useful to know. What matters most in the comparison for you, so I make sure I am answering the right question?", "time": 1755259224000 },
+    { "type": "transcript", "name": "Doug Nyquist", "speaker_type": "external", "content": "Uptime, honestly. We lost about forty hours last year waiting on parts.", "time": 1755259240000 },
+    { "type": "transcript", "name": "Priya Raghunathan", "speaker_type": "agent", "content": "Then let me be specific rather than general. We stock the wear parts for this class locally, and our service contract has a four hour on site response. I would rather show you the response log than claim a number.", "time": 1755259258000 },
+    { "type": "transcript", "name": "Doug Nyquist", "speaker_type": "external", "content": "That would help. What is the budget range we are talking about?", "time": 1755259280000 },
+    { "type": "transcript", "name": "Priya Raghunathan", "speaker_type": "agent", "content": "For six units with that contract, roughly 260000 all in. I want to confirm the parts pricing with our service manager before I put a number in writing.", "time": 1755259296000 },
+    { "type": "transcript", "name": "Doug Nyquist", "speaker_type": "external", "content": "Understood. I need something written by Friday, our board meets the following Tuesday.", "time": 1755259320000 },
+    { "type": "transcript", "name": "Priya Raghunathan", "speaker_type": "agent", "content": "Then I will send the quote and the response log by Thursday end of day, so you have a day to read it before Friday. I will also copy Ellen Vance since you mentioned she signs off.", "time": 1755259338000 }
+  ]
+}

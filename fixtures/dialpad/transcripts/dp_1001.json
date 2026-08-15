@@ -1,0 +1,64 @@
+{
+  "call_id": "dp_1001",
+  "lines": [
+    { "type": "callevent", "name": "System", "content": "Call started", "time": 1755172800000 },
+    {
+      "type": "transcript",
+      "name": "Dana Whitfield",
+      "speaker_type": "agent",
+      "content": "Hi Peter, this is Dana over at United Material Handling. Do you have a couple of minutes to talk about the reach trucks you were asking about?",
+      "time": 1755172802000
+    },
+    {
+      "type": "transcript",
+      "name": "Peter De Haan",
+      "speaker_type": "external",
+      "content": "Yeah, now's fine. We've got three aisles we can't service properly with what we have.",
+      "time": 1755172810000
+    },
+    {
+      "type": "transcript",
+      "name": "Dana Whitfield",
+      "speaker_type": "agent",
+      "content": "Got it. What's the rack height in those aisles, and how many hours a day would these be running?",
+      "time": 1755172818000
+    },
+    {
+      "type": "transcript",
+      "name": "Peter De Haan",
+      "speaker_type": "external",
+      "content": "About thirty foot. Two shifts, so call it sixteen hours. What are we looking at on price?",
+      "time": 1755172830000
+    },
+    {
+      "type": "transcript",
+      "name": "Dana Whitfield",
+      "speaker_type": "agent",
+      "content": "For a thirty foot reach truck you're looking at around 42000 per unit, and I can guarantee we'll have them on site by the fifteenth.",
+      "time": 1755172845000
+    },
+    {
+      "type": "transcript",
+      "name": "Peter De Haan",
+      "speaker_type": "external",
+      "content": "That's higher than I hoped. Crown quoted us a little under forty.",
+      "time": 1755172860000
+    },
+    {
+      "type": "transcript",
+      "name": "Dana Whitfield",
+      "speaker_type": "agent",
+      "content": "I hear you. I can do 8 percent off if you take all three, and I'll follow up soon with something in writing.",
+      "time": 1755172872000
+    },
+    {
+      "type": "transcript",
+      "name": "Peter De Haan",
+      "speaker_type": "external",
+      "content": "Alright. We're deciding by the end of the month, so send it over and I'll take it to Sandra in purchasing.",
+      "time": 1755172890000
+    },
+    { "type": "callevent", "name": "System", "content": "Call ended", "time": 1755173212000 }
+  ],
+  "moments": []
+}

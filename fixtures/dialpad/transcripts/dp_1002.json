@@ -1,0 +1,10 @@
+{
+  "call_id": "dp_1002",
+  "lines": [
+    { "type": "transcript", "name": "Marcus Oyelaran", "speaker_type": "agent", "content": "United Material Handling, this is Marcus.", "time": 1755180000000 },
+    { "type": "transcript", "name": "Sandra Kelleher", "speaker_type": "external", "content": "Marcus, the pallet jacks were supposed to be here Tuesday. It is Thursday. This is unacceptable and I want to speak to a manager.", "time": 1755180006000 },
+    { "type": "transcript", "name": "Marcus Oyelaran", "speaker_type": "agent", "content": "I understand, and I am sorry. Let me pull up the order before I hand you to anyone so you are not repeating yourself.", "time": 1755180020000 },
+    { "type": "transcript", "name": "Sandra Kelleher", "speaker_type": "external", "content": "Fine. But if this happens again we will take my business elsewhere.", "time": 1755180032000 },
+    { "type": "transcript", "name": "Marcus Oyelaran", "speaker_type": "agent", "content": "That is fair. The freight carrier had them sitting in Louisville. I can have it delivered by Monday morning and I am getting Rick on the line now.", "time": 1755180044000 }
+  ]
+}
