@@ -38,3 +38,6 @@ yarn-error.log*
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# generated Prisma client (recreated by `prisma generate` on install)
+src/generated/

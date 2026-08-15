@@ -19,18 +19,19 @@
     "seed": "tsx prisma/seed.ts",
     "sync": "tsx scripts/sync.ts",
     "analyze": "tsx scripts/analyze.ts",
-    "verify": "tsx scripts/verify.ts"
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "verify": "tsx scripts/verify.ts",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.117.1",
+    "@prisma/adapter-pg": "7.9.1",
     "@prisma/client": "^7.9.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "dotenv": "17.4.2",
     "jose": "^5.9.6",
     "next": "^16.3.1",
+    "pg": "8.23.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "recharts": "^2.15.0",
@@ -40,6 +41,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^22.10.7",
+    "@types/pg": "8.21.0",
     "@types/react": "^19.0.7",
     "@types/react-dom": "^19.0.3",
     "eslint": "^9.18.0",

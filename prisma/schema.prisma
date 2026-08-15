@@ -1,0 +1,608 @@
+// Blake — conversation intelligence + CRM autofill.
+//
+// Read order: the provenance block (Actor / Action / AuditEvent / AutonomyPolicy)
+// comes first deliberately. Every mutating record in this schema answers three
+// separate questions — who proposed it, who authorized it, who executed it —
+// and those answers are columns, not an afterthought.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ===========================================================================
+// Provenance
+// ===========================================================================
+
+/// What kind of thing performed an act. `ai_agent` is separated from `system`
+/// on purpose: a deterministic rules pass and a model inference are both
+/// non-human, but only one of them can be wrong in an interesting way.
+enum ActorKind {
+  human
+  ai_agent
+  system
+  integration
+}
+
+/// Anything that can propose, authorize, or execute. Humans, model-backed
+/// agents, scheduled jobs, and inbound webhooks all get a row, so no mutation
+/// in the system is ever unattributed.
+model Actor {
+  id          String    @id @default(cuid())
+  kind        ActorKind
+  displayName String
+
+  /// Set when kind = human.
+  agentId String? @unique
+  agent   Agent?  @relation(fields: [agentId], references: [id], onDelete: SetNull)
+
+  /// Set when kind = ai_agent. Pinned so that a year from now "why did it
+  /// suggest that?" is answerable — you know the exact model and prompt.
+  model         String?
+  promptVersion String?
+
+  /// Set when kind = integration, e.g. "dialpad_webhook".
+  integration String?
+
+  createdAt DateTime @default(now())
+
+  proposedActions   Action[] @relation("ActionProposedBy")
+  authorizedActions Action[] @relation("ActionAuthorizedBy")
+  executedActions   Action[] @relation("ActionExecutedBy")
+
+  auditProposed   AuditEvent[] @relation("AuditProposedBy")
+  auditAuthorized AuditEvent[] @relation("AuditAuthorizedBy")
+  auditExecuted   AuditEvent[] @relation("AuditExecutedBy")
+
+  analyses     Analysis[]
+  flags        Flag[]
+  resolvedCrmLinks CrmLink[]
+
+  @@index([kind])
+  @@index([model, promptVersion])
+}
+
+enum ActionType {
+  crm_field_update
+  crm_task
+  crm_activity_log
+  email_followup
+  internal_notification
+}
+
+enum ActionStatus {
+  draft
+  pending_approval
+  approved
+  scheduled
+  executing
+  succeeded
+  failed
+  rejected
+  cancelled
+  reverted
+}
+
+enum PolicyDecision {
+  require_approval
+  auto_execute
+  auto_execute_after_delay
+}
+
+/// One proposed change to the outside world. A Salesforce field write, a task,
+/// a drafted email, and an internal alert are all this shape — which is what
+/// keeps the approval queue, policy engine, and audit trail single-purpose
+/// instead of forked per feature.
+model Action {
+  id             String       @id @default(cuid())
+  conversationId String?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  actionType ActionType
+  status     ActionStatus @default(pending_approval)
+
+  /// Shape depends on actionType; validated by a zod schema at the boundary.
+  payload Json
+
+  // --- the three questions -------------------------------------------------
+  proposedByActorId   String
+  proposedBy          Actor  @relation("ActionProposedBy", fields: [proposedByActorId], references: [id])
+  /// Null means nothing has approved this yet. That is load-bearing: the
+  /// default policy refuses to execute an action with a null value here.
+  authorizedByActorId String?
+  authorizedBy        Actor? @relation("ActionAuthorizedBy", fields: [authorizedByActorId], references: [id])
+  executedByActorId   String?
+  executedBy          Actor? @relation("ActionExecutedBy", fields: [executedByActorId], references: [id])
+  // -------------------------------------------------------------------------
+
+  policyDecision PolicyDecision?
+
+  /// Model confidence, 0-1. Null for deterministic proposals.
+  confidence  Float?
+  /// The transcript line this was drawn from. A suggestion without evidence is
+  /// not reviewable, so the UI always renders this next to the proposal.
+  sourceQuote String?
+  rationale   String?
+
+  scheduledFor DateTime?
+  externalId   String?
+  error        String?
+
+  rejectionReason String?
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  reviewedAt DateTime?
+  executedAt DateTime?
+
+  auditEvents AuditEvent[]
+
+  @@index([status, actionType])
+  @@index([conversationId])
+  @@index([proposedByActorId])
+  @@index([createdAt])
+}
+
+/// Per-action-type autonomy rules. Ships with require_approval for everything;
+/// admins loosen specific types once they have watched the system behave.
+model AutonomyPolicy {
+  id         String     @id @default(cuid())
+  actionType ActionType @unique
+
+  decision     PolicyDecision @default(require_approval)
+  delaySeconds Int            @default(0)
+  enabled      Boolean        @default(true)
+
+  /// Below this confidence a proposal always needs a human, whatever `decision`
+  /// says. Null disables the check.
+  minConfidence Float?
+
+  /// Customer-facing types carry extra checks (do-not-contact, business hours).
+  customerFacing Boolean @default(false)
+
+  /// Ceiling on autonomous executions per hour, so a bad prompt cannot fan out.
+  maxPerHour Int @default(60)
+
+  updatedAt DateTime @updatedAt
+}
+
+/// Append-only. Nothing updates or deletes these rows — a database rule
+/// enforces it, because an audit log that can be rewritten is not evidence.
+model AuditEvent {
+  id String @id @default(cuid())
+
+  actionId String?
+  action   Action? @relation(fields: [actionId], references: [id], onDelete: SetNull)
+
+  proposedByActorId   String?
+  proposedBy          Actor?  @relation("AuditProposedBy", fields: [proposedByActorId], references: [id])
+  authorizedByActorId String?
+  authorizedBy        Actor?  @relation("AuditAuthorizedBy", fields: [authorizedByActorId], references: [id])
+  executedByActorId   String?
+  executedBy          Actor?  @relation("AuditExecutedBy", fields: [executedByActorId], references: [id])
+
+  /// e.g. "action.proposed", "action.approved", "crm.field_written"
+  eventType  String
+  targetType String?
+  targetId   String?
+
+  /// Captured before the write so undo is real rather than aspirational.
+  beforeValue Json?
+  afterValue  Json?
+
+  policyDecision PolicyDecision?
+
+  /// Ties an entire propose -> approve -> execute chain together.
+  correlationId String?
+
+  summary String?
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([eventType])
+  @@index([correlationId])
+  @@index([actionId])
+}
+
+// ===========================================================================
+// People and conversations
+// ===========================================================================
+
+model Agent {
+  id    String  @id @default(cuid())
+  name  String
+  email String  @unique
+  team  String?
+  active Boolean @default(true)
+
+  dialpadUserId    String? @unique
+  fellowUserId     String? @unique
+  salesforceUserId String?
+
+  actor         Actor?
+  conversations Conversation[]
+  trainingOpportunities TrainingOpportunity[]
+  salesforceConnection  SalesforceConnection?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum ConversationSource {
+  dialpad
+  fellow
+}
+
+enum Direction {
+  inbound
+  outbound
+  internal
+}
+
+enum TranscriptStatus {
+  pending
+  available
+  unavailable
+  failed
+}
+
+enum AnalysisStatus {
+  pending
+  skipped
+  analyzed
+  failed
+}
+
+/// A Dialpad call and a Fellow meeting normalize to this one record. Every
+/// downstream feature — coaching, themes, CRM extraction — is written once
+/// against this shape rather than forked per source.
+model Conversation {
+  id     String             @id @default(cuid())
+  source ConversationSource
+  /// The provider's own id. Unique per source, which is what makes replayed
+  /// webhooks and overlapping backfill windows no-ops.
+  sourceId String
+
+  title     String?
+  direction Direction @default(outbound)
+
+  agentId String?
+  agent   Agent?  @relation(fields: [agentId], references: [id], onDelete: SetNull)
+
+  startedAt   DateTime
+  durationSec Int      @default(0)
+
+  recordingUrl String?
+  externalUrl  String?
+  disposition  String?
+  dispositionNotes String?
+
+  transcriptStatus TranscriptStatus @default(pending)
+  analysisStatus   AnalysisStatus   @default(pending)
+
+  /// Provider-supplied summary (Fellow gives us one). An input to our analysis,
+  /// not a replacement for it.
+  providerSummary String?
+
+  participants Participant[]
+  segments     TranscriptSegment[]
+  analysis     Analysis?
+  flags        Flag[]
+  themes       ConversationTheme[]
+  trainingOpportunities TrainingOpportunity[]
+  actions      Action[]
+  crmLink      CrmLink?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([source, sourceId])
+  @@index([startedAt])
+  @@index([agentId, startedAt])
+  @@index([analysisStatus])
+}
+
+model Participant {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  name       String?
+  email      String?
+  phone      String?
+  /// Drives whether CRM extraction runs at all — internal standups should not
+  /// generate opportunity suggestions.
+  isExternal Boolean @default(false)
+  role       String?
+
+  @@index([conversationId])
+  @@index([email])
+  @@index([phone])
+}
+
+enum SpeakerRole {
+  agent
+  customer
+  unknown
+}
+
+model TranscriptSegment {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  speakerRole SpeakerRole @default(unknown)
+  speakerName String?
+  startMs     Int
+  text        String
+
+  flags Flag[]
+
+  @@index([conversationId, startMs])
+}
+
+// ===========================================================================
+// Analysis
+// ===========================================================================
+
+model Analysis {
+  id             String       @id @default(cuid())
+  conversationId String       @unique
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  producedByActorId String
+  producedBy        Actor  @relation(fields: [producedByActorId], references: [id])
+
+  /// 0-5, weighted across rubric dimensions. Advisory — the UI says so.
+  overallScore Float?
+  sentiment    String?
+  summary      String?
+
+  tokensUsed Int?
+
+  scores ScoreItem[]
+
+  createdAt DateTime @default(now())
+
+  @@index([producedByActorId])
+}
+
+model RubricDimension {
+  slug        String  @id
+  label       String
+  description String
+  weight      Float   @default(1)
+  sortOrder   Int     @default(0)
+  enabled     Boolean @default(true)
+
+  scores ScoreItem[]
+}
+
+model ScoreItem {
+  id         String   @id @default(cuid())
+  analysisId String
+  analysis   Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  dimensionSlug String
+  dimension     RubricDimension @relation(fields: [dimensionSlug], references: [slug], onDelete: Cascade)
+
+  score         Float
+  evidenceQuote String?
+  rationale     String?
+
+  @@unique([analysisId, dimensionSlug])
+}
+
+enum Severity {
+  low
+  medium
+  high
+  critical
+}
+
+/// An issue found on a conversation. Rule-engine findings and model findings
+/// share this table on purpose — a manager sees one list with a source badge,
+/// not two disjoint systems.
+model Flag {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  producedByActorId String
+  producedBy        Actor  @relation(fields: [producedByActorId], references: [id])
+
+  severity Severity
+  category String
+  title    String
+  detail   String?
+  quote    String?
+
+  segmentId String?
+  segment   TranscriptSegment? @relation(fields: [segmentId], references: [id], onDelete: SetNull)
+
+  ruleId String?
+  rule   Rule?   @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([conversationId])
+  @@index([severity])
+  @@index([category])
+}
+
+model TrainingOpportunity {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  agentId String?
+  agent   Agent?  @relation(fields: [agentId], references: [id], onDelete: SetNull)
+
+  skillSlug    String
+  priority     Severity @default(medium)
+  suggestion   String
+  exampleQuote String?
+
+  createdAt DateTime @default(now())
+
+  @@index([agentId])
+  @@index([skillSlug])
+}
+
+model Theme {
+  slug        String  @id
+  label       String
+  description String
+  category    String?
+  sortOrder   Int     @default(0)
+  enabled     Boolean @default(true)
+
+  conversations ConversationTheme[]
+}
+
+model ConversationTheme {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  themeSlug      String
+  theme          Theme        @relation(fields: [themeSlug], references: [slug], onDelete: Cascade)
+
+  confidence Float?
+  sentiment  String?
+  quote      String?
+
+  @@unique([conversationId, themeSlug])
+  @@index([themeSlug])
+}
+
+enum RuleTarget {
+  agent
+  customer
+  any
+}
+
+/// Deterministic keyword/regex checks. These run with or without an API key,
+/// which is what keeps compliance flagging independent of model availability.
+model Rule {
+  id            String     @id @default(cuid())
+  name          String
+  description   String?
+  pattern       String
+  isRegex       Boolean    @default(false)
+  caseSensitive Boolean    @default(false)
+  appliesTo     RuleTarget @default(any)
+  category      String
+  severity      Severity   @default(medium)
+  enabled       Boolean    @default(true)
+
+  flags Flag[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model IngestRun {
+  id     String             @id @default(cuid())
+  source ConversationSource
+
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+
+  windowStart DateTime?
+  windowEnd   DateTime?
+
+  seen  Int @default(0)
+  added Int @default(0)
+
+  error String?
+
+  @@index([source, startedAt])
+}
+
+// ===========================================================================
+// CRM
+// ===========================================================================
+
+/// Per-rep Salesforce OAuth. Writes execute with the approving rep's own token,
+/// so Salesforce sharing rules and field-level security apply for free — the
+/// app cannot write a field the rep could not have typed themselves.
+model SalesforceConnection {
+  id      String @id @default(cuid())
+  agentId String @unique
+  agent   Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  instanceUrl String
+  /// AES-256-GCM. Never logged, never returned to the client.
+  encryptedRefreshToken String
+  scopes      String?
+  sfUserId    String?
+  sfOrgId     String?
+
+  status         String    @default("active")
+  lastVerifiedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum MatchMethod {
+  email
+  phone
+  domain
+  manual
+}
+
+/// Resolution from a conversation to Salesforce records. A manual resolution
+/// persists so the same contact resolves automatically next time.
+model CrmLink {
+  id             String       @id @default(cuid())
+  conversationId String       @unique
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  contactId     String?
+  leadId        String?
+  accountId     String?
+  opportunityId String?
+
+  matchMethod MatchMethod?
+  confidence  Float?
+
+  resolvedByActorId String?
+  resolvedBy        Actor?  @relation(fields: [resolvedByActorId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum WritePolicy {
+  suggest_only
+  never
+}
+
+/// Maps an extracted attribute onto a Salesforce field. Validated against the
+/// Describe cache so a mapping cannot point at a field that does not exist.
+model CrmFieldMapping {
+  id           String @id @default(cuid())
+  attributeKey String
+  sObject      String
+  fieldName    String
+
+  enabled     Boolean     @default(true)
+  writePolicy WritePolicy @default(suggest_only)
+
+  /// Amount / StageName / CloseDate are marked sensitive and always require a
+  /// human, whatever the autonomy policy says.
+  sensitive Boolean @default(false)
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([attributeKey, sObject])
+}
