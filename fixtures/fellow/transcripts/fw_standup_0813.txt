@@ -1,0 +1,4 @@
+[00:00:05] Ryan Bartlett: Alright, quick pipeline pass. Priya, where did Nyquist land?
+[00:00:14] Priya Raghunathan: Still waiting on their board. I guaranteed nothing, just sent the response log.
+[00:00:29] Ryan Bartlett: Good. Anything stuck?
+[00:00:36] Priya Raghunathan: Ostrowski wants a discount I can't approve, so I've kicked it to you.

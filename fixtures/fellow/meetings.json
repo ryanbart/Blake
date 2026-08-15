@@ -1,0 +1,47 @@
+{
+  "items": [
+    {
+      "meeting_id": "fw_apex_0814",
+      "title": "UMH + Apex Discussion",
+      "start_time": "2026-08-14T14:30:00-04:00",
+      "end_time": "2026-08-14T15:00:00-04:00",
+      "note_id": 85688118,
+      "recording_id": 17012184,
+      "note": "Talking Points\nReach truck fleet for the new cold storage aisles\n\nAction Items\n[ ] Send written quote with service terms",
+      "url": "https://unitedmh.fellow.app/meetings/fw_apex_0814",
+      "meeting_link": "https://fellow.link/4JE89NFRQ71Q",
+      "video_url": "https://meetingrecording.fellow.app/prod/17012184/video.mp4",
+      "media_type": "VIDEO",
+      "summaries": [
+        { "final_summary": "Ryan walked Peter through reach truck options for three new cold storage aisles. Peter raised uptime as the deciding factor after losing shifts to parts delays. Ryan committed to a written quote with service response terms by Thursday." }
+      ],
+      "quotes": [],
+      "recap_highlights": [],
+      "participants": ["Ryan Bartlett", "Peter De Haan"]
+    },
+    {
+      "meeting_id": "fw_standup_0813",
+      "title": "Sales Team Standup",
+      "start_time": "2026-08-13T09:00:00-04:00",
+      "end_time": "2026-08-13T09:20:00-04:00",
+      "note_id": 85601001,
+      "recording_id": 17009001,
+      "note": "Weekly pipeline review",
+      "url": "https://unitedmh.fellow.app/meetings/fw_standup_0813",
+      "summaries": [
+        { "final_summary": "Internal pipeline review. Nothing customer-facing." }
+      ],
+      "participants": ["Ryan Bartlett", "Priya Raghunathan"]
+    },
+    {
+      "meeting_id": "fw_noshow_0812",
+      "title": "Kowalczyk Cold Chain — intro",
+      "start_time": "2026-08-12T11:00:00-04:00",
+      "end_time": "2026-08-12T11:30:00-04:00",
+      "note_id": 85590002,
+      "url": "https://unitedmh.fellow.app/meetings/fw_noshow_0812",
+      "participants": ["Ryan Bartlett", "Bernice Kowalczyk"]
+    }
+  ],
+  "cursor": null
+}

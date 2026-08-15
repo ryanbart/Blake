@@ -1,0 +1,6 @@
+{
+  "items": [
+    { "id": "ai_1", "text": "Send written quote with service response terms", "assignee": "Ryan Bartlett", "assignee_email": "ryan@unitedmh.com", "due_date": "2026-08-20", "completed": false },
+    { "id": "ai_2", "text": "Forward proposal to ops director for sign-off", "assignee_email": "Peter.dehaan@apex-cos.com", "completed": false }
+  ]
+}

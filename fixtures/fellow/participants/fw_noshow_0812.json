@@ -1,0 +1,6 @@
+{
+  "items": [
+    { "email": "ryan@unitedmh.com", "name": "Ryan Bartlett", "is_attendee": true, "is_organizer": true, "is_external": false },
+    { "email": "bernice@kowalczykcc.example", "name": "Bernice Kowalczyk", "is_attendee": true, "rsvp": "declined", "is_external": true }
+  ]
+}
