@@ -1,0 +1,40 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# next.js
+.next/
+out/
+next-env.d.ts
+
+# production
+build/
+dist/
+
+# local database (created by scripts/dev-db.sh)
+.pgdata/
+
+# env — .env.example is committed, real secrets are not
+.env
+.env.local
+.env*.local
+
+# testing
+coverage/
+
+# misc
+.DS_Store
+*.pem
+*.tsbuildinfo
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# editors
+.idea/
+.vscode/*
+!.vscode/extensions.json

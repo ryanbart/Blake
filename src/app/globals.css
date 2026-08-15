@@ -1,0 +1,161 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Design tokens.
+
+   Light values live on bare :root so a theme block is never the only place a
+   color is defined. Dark redefines the same names, so every component reads one
+   token name and both themes stay in sync by construction.
+   --------------------------------------------------------------------------- */
+:root {
+  --bg: #fbfbfa;
+  --surface: #ffffff;
+  --surface-2: #f4f4f2;
+  --border: #e4e4e1;
+  --border-strong: #d0d0cc;
+
+  --text: #1a1a19;
+  --text-muted: #6b6b66;
+  --text-subtle: #949490;
+
+  --accent: #2f6f5e;
+  --accent-hover: #275c4e;
+  --accent-fg: #ffffff;
+  --accent-subtle: #e8f1ee;
+
+  /* Severity. Ordered low -> critical; hue and lightness both carry the ramp so
+     the scale survives greyscale printing and the common forms of color blindness. */
+  --sev-low: #6b7f8c;
+  --sev-med: #b8791f;
+  --sev-high: #c2542c;
+  --sev-critical: #a32b2b;
+  --sev-low-bg: #eef2f4;
+  --sev-med-bg: #fcf3e3;
+  --sev-high-bg: #fbeee7;
+  --sev-critical-bg: #f9e9e9;
+
+  --positive: #2f6f5e;
+  --negative: #a32b2b;
+
+  /* Actor kinds. These read as identity, not severity, so they stay distinct
+     from the ramp above. */
+  --actor-human: #3b5f9e;
+  --actor-ai: #6b4f9e;
+  --actor-system: #6b6b66;
+  --actor-human-bg: #eaf0f9;
+  --actor-ai-bg: #f0ebf9;
+  --actor-system-bg: #f1f1ef;
+
+  --radius: 0.5rem;
+  --radius-sm: 0.3125rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131413;
+    --surface: #1b1c1b;
+    --surface-2: #232423;
+    --border: #2e2f2e;
+    --border-strong: #3f403f;
+
+    --text: #ececea;
+    --text-muted: #a0a09b;
+    --text-subtle: #777772;
+
+    --accent: #6cb39c;
+    --accent-hover: #7fc2ac;
+    --accent-fg: #0f1512;
+    --accent-subtle: #1c2b26;
+
+    --sev-low: #93a7b4;
+    --sev-med: #d9a54e;
+    --sev-high: #e0805a;
+    --sev-critical: #e06a6a;
+    --sev-low-bg: #1e2429;
+    --sev-med-bg: #2b2416;
+    --sev-high-bg: #2d2019;
+    --sev-critical-bg: #2e1d1d;
+
+    --positive: #6cb39c;
+    --negative: #e06a6a;
+
+    --actor-human: #8fb0e6;
+    --actor-ai: #b39ae6;
+    --actor-system: #a0a09b;
+    --actor-human-bg: #1b2333;
+    --actor-ai-bg: #251f33;
+    --actor-system-bg: #242422;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #131413;
+  --surface: #1b1c1b;
+  --surface-2: #232423;
+  --border: #2e2f2e;
+  --border-strong: #3f403f;
+
+  --text: #ececea;
+  --text-muted: #a0a09b;
+  --text-subtle: #777772;
+
+  --accent: #6cb39c;
+  --accent-hover: #7fc2ac;
+  --accent-fg: #0f1512;
+  --accent-subtle: #1c2b26;
+
+  --sev-low: #93a7b4;
+  --sev-med: #d9a54e;
+  --sev-high: #e0805a;
+  --sev-critical: #e06a6a;
+  --sev-low-bg: #1e2429;
+  --sev-med-bg: #2b2416;
+  --sev-high-bg: #2d2019;
+  --sev-critical-bg: #2e1d1d;
+
+  --positive: #6cb39c;
+  --negative: #e06a6a;
+
+  --actor-human: #8fb0e6;
+  --actor-ai: #b39ae6;
+  --actor-system: #a0a09b;
+  --actor-human-bg: #1b2333;
+  --actor-ai-bg: #251f33;
+  --actor-system-bg: #242422;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border-base: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-subtle: var(--text-subtle);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
+  --radius-token: var(--radius);
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Numbers in tables and stat tiles must line up column-wise. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
