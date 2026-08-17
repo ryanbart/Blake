@@ -123,8 +123,8 @@ information needed to explain a year-old suggestion.
 | `npm run seed` | Seed agents, conversations, transcripts, reference data |
 | `npm run sync` | Backfill both sources (`-- --days 30`, `-- --source fellow`) |
 | `npm run analyze` | Analyze pending conversations (`-- --force`, `-- --limit 5`) |
-| `npm run verify` | Check credentials and connectivity |
-| `npm test` | Test suite (149 tests) |
+| `npm run verify` | Check credentials (`-- --dialpad --redact --dump`; no database needed) |
+| `npm test` | Test suite (158 tests) |
 
 ## Configuration
 
@@ -143,8 +143,13 @@ developed and evaluated without credentials, not as a substitute for analysis.
 Run these in order; each is verifiable on its own.
 
 1. **Dialpad.** Set `DIALPAD_API_KEY` and `DIALPAD_TRANSPORT=live`, then
-   `npm run verify -- --dialpad`. It prints live responses next to what the
-   mappers expect, so a field-name drift is visible immediately.
+   `npm run verify -- --dialpad --redact --dump`. It prints live responses next
+   to what the mappers expect, so a field-name drift is visible immediately.
+   `--redact` masks names and emails; `--dump` prints the raw field names Dialpad
+   returned (names only, never values) so a renamed field is a one-line fix.
+
+   This check needs no database — run it before setting up Postgres.
+   **Full walkthrough: [docs/CONNECTING-DIALPAD.md](docs/CONNECTING-DIALPAD.md).**
 
    > Vendor documentation sites are unreachable from the environment this was
    > built in, so the API shapes are written defensively — tolerant parsing, one

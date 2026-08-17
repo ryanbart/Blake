@@ -15,14 +15,32 @@ find_bindir() {
     dirname "$(command -v pg_ctl)"
     return
   fi
-  # Debian/Ubuntu keep server binaries out of PATH; take the highest version.
+
+  # Neither Debian nor Homebrew puts the server binaries on PATH: Debian keeps
+  # them under /usr/lib, and Homebrew's postgresql@NN formulae are keg-only.
+  # Search both, newest version last so `tail -1` picks it.
   local candidate
-  candidate="$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1)"
+  candidate="$(
+    ls -d /usr/lib/postgresql/*/bin \
+          /opt/homebrew/opt/postgresql@*/bin \
+          /usr/local/opt/postgresql@*/bin \
+          /opt/homebrew/Cellar/postgresql@*/*/bin \
+          /usr/local/Cellar/postgresql@*/*/bin 2>/dev/null | sort -V | tail -1
+  )"
   if [[ -n "$candidate" && -x "$candidate/pg_ctl" ]]; then
     echo "$candidate"
     return
   fi
-  echo "error: could not find pg_ctl. Install postgresql-16 or set PATH." >&2
+
+  cat >&2 <<'MSG'
+error: could not find pg_ctl.
+
+  macOS:         brew install postgresql@16
+  Debian/Ubuntu: sudo apt install postgresql-16
+  Windows:       run this under WSL — this script is bash and uses Unix sockets.
+
+Or set PATH to a directory containing pg_ctl.
+MSG
   exit 1
 }
 

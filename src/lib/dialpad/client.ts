@@ -95,6 +95,18 @@ export interface LiveDialpadOptions {
   /** Poll budget for the async stats export. */
   statsTimeoutMs?: number;
   fetchImpl?: typeof fetch;
+  /**
+   * Observe raw responses before they are mapped.
+   *
+   * Exists for `npm run verify -- --dump`, which reports the *field names*
+   * Dialpad actually returned. The mappers here were written without access to
+   * the API docs, so when one misses, the mapped value is null and the output
+   * cannot say why — the raw key list is what turns that into a one-line fix.
+   *
+   * Diagnostic only: absent in every production path, and never awaited, so a
+   * throwing callback cannot break a sync.
+   */
+  onRawResponse?: (endpoint: string, body: unknown) => void;
 }
 
 export class LiveDialpadClient implements DialpadClient {
@@ -129,7 +141,16 @@ export class LiveDialpadClient implements DialpadClient {
         res.status,
       );
     }
-    return { status: res.status, body: (await res.json()) as T };
+    const body = (await res.json()) as T;
+    if (this.opts.onRawResponse) {
+      // Never let a diagnostic hook take down a sync.
+      try {
+        this.opts.onRawResponse(pathname, body);
+      } catch {
+        /* ignore */
+      }
+    }
+    return { status: res.status, body };
   }
 
   async listUsers(): Promise<DialpadUser[]> {
@@ -238,12 +259,18 @@ export class LiveDialpadClient implements DialpadClient {
 }
 
 /** Pick a transport from the environment. Defaults to mock so nothing calls out by accident. */
-export function createDialpadClient(env = process.env): DialpadClient {
+export function createDialpadClient(
+  env = process.env,
+  // Diagnostic overrides. Only `verify --dump` passes anything here; the mock
+  // transport makes no HTTP requests, so the hook simply never fires there.
+  opts: Pick<LiveDialpadOptions, "onRawResponse"> = {},
+): DialpadClient {
   const transport = (env.DIALPAD_TRANSPORT ?? "mock").toLowerCase();
   if (transport === "live") {
     return new LiveDialpadClient({
       apiKey: env.DIALPAD_API_KEY ?? "",
       baseUrl: env.DIALPAD_BASE_URL,
+      onRawResponse: opts.onRawResponse,
     });
   }
   return new MockDialpadClient();
